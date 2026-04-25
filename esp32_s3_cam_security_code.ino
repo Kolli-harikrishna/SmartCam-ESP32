@@ -37,6 +37,7 @@ const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
 
 // ---------- PIR ----------
+// update 1
 #define PIR_PIN 14
 
 const unsigned long pirWarmupTime = 20000;
