@@ -39,7 +39,7 @@ const int daylightOffset_sec = 0;
 // ---------- PIR ----------
 // update 1
 #define PIR_PIN 14
-
+//update 5
 const unsigned long pirWarmupTime = 20000;
 const unsigned long motionConfirmTime = 800;
 const unsigned long alertCooldown = 8000;
