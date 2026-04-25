@@ -300,6 +300,7 @@ void reconnectWiFiIfNeeded() {
 }
 
 // ---------- Camera ----------
+//update 6
 bool initCamera() {
   camera_config_t config;
 
