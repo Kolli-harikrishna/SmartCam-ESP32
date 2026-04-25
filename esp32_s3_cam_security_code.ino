@@ -580,7 +580,7 @@ void setup() {
   Serial.println("Setup AP active for 45 seconds...");
   Serial.println("Camera and PIR will start after setup AP stops.");
 }
-
+//update 7
 // ---------- Loop ----------
 void loop() {
   server.handleClient();
