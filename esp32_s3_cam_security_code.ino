@@ -377,7 +377,7 @@ void startCameraAfterAPStops() {
     }
   }
 }
-
+//update 4
 // ---------- Telegram ----------
 String urlEncode(String str) {
   String encoded = "";
