@@ -5,7 +5,7 @@
 #include <ESPmDNS.h>
 #include "esp_camera.h"
 #include "time.h"
-
+// update 2
 // ---------- Setup Portal ----------
 const char* apSSID = "SmartCam_Setup";
 const char* apPassword = "12345678";
