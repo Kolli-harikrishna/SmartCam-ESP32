@@ -56,6 +56,7 @@ bool cameraReady = false;
 bool systemStartedMessageSent = false;
 
 // ---------- Camera Pins ----------
+// update 3
 #define PWDN_GPIO_NUM     -1
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM     15
