@@ -47,9 +47,6 @@ This project is designed as a **product-oriented solution**, focusing on usabili
 - Embedded C / C++
 - WiFi & WebServer Libraries
 - Telegram Bot API
-- GitHub (Version Control)
-- Fusion 360 (Enclosure Design)
-
 ---
 
 ## 📂 Project Structure
