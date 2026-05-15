@@ -1,112 +1,393 @@
-# 🚨 SmartCam – Quick User Testing & Setup Guide
+<div align="center">
 
-## 📌 Purpose
-This document provides instructions for users to **set up, configure, and test the SmartCam device**.  
-It is not intended for building the system, but only for operating and testing the completed device.
+# 🚨 SmartCam User Guide
+## Setup, Configuration & Testing Manual
 
----
+### ESP32-S3 Smart Security Surveillance System
 
-## 🔌 1. Powering the Device
-- Connect the SmartCam device to a **5V power supply**
-- The system will start automatically
+</div>
 
 ---
 
-## 📶 2. Setup Mode (Initial Configuration)
+# 📌 Introduction
 
-### Connect to Setup Wi-Fi
-- Open Wi-Fi settings on your mobile or laptop
-- Connect to:
-SSID: SmartCam_Setup
-Password: 12345678
+Welcome to the SmartCam Security System.
 
-⚠️ Note:  
-This setup network is available only for **approximately 45 seconds after the device is powered ON**.
+SmartCam is an IoT-based smart surveillance system designed for real-time intrusion monitoring and instant Telegram alerts. The system uses an ESP32-S3 Camera Module and PIR motion sensor to detect movement, capture images, and notify users remotely.
 
----
+This guide explains:
 
-## 🌐 3. Open Setup Page
-1. Open a web browser  
-2. Enter the following address:
+- Device setup
+- Wi-Fi configuration
+- Telegram bot creation
+- Dashboard access
+- Security testing
+- Troubleshooting
 
-👉 http://192.168.4.1
+This manual is intended for end users operating the completed SmartCam device.
 
 ---
 
-## 🔐 4. Create Login Password
-- Set a login password for security  
-- This password protects your device configuration  
+# 📦 Package Contents
+
+| Component | Description |
+|---|---|
+| SmartCam Device | Main security system |
+| ESP32-S3 Camera | Built-in image capture |
+| PIR Motion Sensor | Motion detection |
+| Power Adapter | 5V system power |
+| USB Cable | Device power connection |
 
 ---
 
-## ⚙️ 5. Enter Your Details
-Fill in the following details:
+# 🔌 1. Powering the Device
 
-- Wi-Fi Name (SSID) & Password  
-- Telegram Bot Token  
-- Chat ID  
-- Device ID  
-- House Name & Room Name  
-
-👉 Click **Save**
-
-- The device will restart automatically  
-- It will connect to the configured Wi-Fi network  
+## Steps
+1. Connect the SmartCam device to a stable **5V power supply**
+2. Wait for the system to boot
+3. The setup hotspot will start automatically
 
 ---
 
-## 🌍 6. Accessing the Device After Setup
-After configuration, the device can be accessed anytime.
+# 📶 2. Setup Mode (Initial Configuration)
 
-### Steps:
-- Ensure your mobile/laptop is connected to the **same Wi-Fi network**
-- Open a browser and enter:
+After power ON, SmartCam creates its own setup Wi-Fi network.
 
-👉 http://smartcam.local  
+## Connect to Setup Network
 
-### Login:
-- Enter the created password  
-- Access the configuration interface  
+Open Wi-Fi settings on your mobile or laptop and connect to:
 
----
+```text
+Wi-Fi Name : SmartCam_Setup
+Password   : 12345678
+```
 
-## 🧪 7. System Testing Procedure
-To test the device:
-
-1. Power ON the system  
-2. Wait until it connects to Wi-Fi  
-3. Move in front of the PIR sensor  
-4. Verify the following:
-   - Motion detection  
-   - Image capture  
-   - Telegram alert  
+⚠️ Important:
+- Setup hotspot remains active for approximately **100 seconds**
+- Complete setup before the hotspot closes
 
 ---
 
-## 🚨 8. Expected Output
-When motion is detected, the user will receive:
+# 🌐 3. Open Setup Page
 
-- Device ID  
-- House name and romm name
-- Date and time  
-- Captured image  
+After connecting to the SmartCam setup Wi-Fi:
 
----
+## Open Browser
+Enter the following address:
 
-## ⚠️ 9. Important Notes
-- Ensure the **PIR sensor and camera are aligned in the same direction**  
-- Use a **stable 5V power supply**  
-- Avoid placing the sensor near heat sources or moving objects  
-- Ensure internet connection is active for Telegram alerts  
+```text
+http://192.168.4.1
+```
+
+The SmartCam configuration page will open.
 
 ---
 
-## 🌐 10. Network Note
-- The address **smartcam.local** works only when:
-  - The device and user are connected to the **same Wi-Fi network**
+# 🔐 4. Create Device Login Password
+
+During first setup:
+
+1. Create a secure login password
+2. Confirm the password
+3. Click **Save Password**
+
+This password protects access to the SmartCam dashboard.
 
 ---
 
-## 📌 11. Conclusion
-This guide helps users to easily configure, access, and test the SmartCam device.  
-Proper setup ensures reliable performance and accurate motion detection.
+# 🤖 5. Create Telegram Bot
+
+SmartCam uses Telegram to send security alerts and captured images.
+
+Follow these steps carefully.
+
+---
+
+## Step 1 — Open Telegram
+
+Install and open the Telegram application on:
+- Mobile phone
+- Laptop/Desktop
+
+---
+
+## Step 2 — Search for BotFather
+
+In Telegram search:
+
+```text
+@BotFather
+```
+
+Open the verified BotFather account.
+
+---
+
+## Step 3 — Create New Bot
+
+Send the command:
+
+```text
+/newbot
+```
+
+BotFather will ask:
+
+### Enter Bot Name
+Example:
+
+```text
+SmartCam Security Bot
+```
+
+---
+
+## Step 4 — Create Bot Username
+
+Choose a unique username ending with:
+
+```text
+bot
+```
+
+Example:
+
+```text
+smartcam_security_bot
+```
+
+---
+
+## Step 5 — Copy Bot Token
+
+BotFather will generate a Bot Token.
+
+Example:
+
+```text
+123456789:ABCxxxxxxxxxxxxxxxxxxxx
+```
+
+⚠️ Save this token carefully.
+
+This token is required in SmartCam setup.
+
+---
+
+# 🆔 6. Get Telegram Chat ID
+
+## Step 1
+Search Telegram for:
+
+```text
+@userinfobot
+```
+
+---
+
+## Step 2
+Open the bot and press:
+
+```text
+Start
+```
+
+---
+
+## Step 3
+Copy Your Chat ID
+
+Example:
+
+```text
+5646084450
+```
+
+⚠️ Save this Chat ID carefully.
+
+---
+
+# ⚙️ 7. Enter Configuration Details
+
+On the SmartCam setup page, enter:
+
+| Field | Description |
+|---|---|
+| Wi-Fi Name | Your router Wi-Fi SSID |
+| Wi-Fi Password | Router password |
+| Telegram Bot Token | BotFather token |
+| Telegram Chat ID | Your Telegram Chat ID |
+| Device ID | Example: CAM001 |
+| House Name | Example: Krishna House |
+| Room Name | Example: Main Door |
+
+After entering details:
+
+✅ Click **Save Settings**
+
+The device will restart automatically.
+
+---
+
+# 🌍 8. Access SmartCam Dashboard
+
+After restart:
+
+1. Connect your phone/laptop to the SAME Wi-Fi network
+2. Open browser
+3. Enter:
+
+```text
+http://smartcam.local
+```
+
+---
+
+## Dashboard Features
+
+The SmartCam dashboard includes:
+
+- Security ON/OFF controls
+- Device monitoring
+- Wi-Fi status
+- Login protection
+- Device configuration
+
+---
+
+# 📡 9. Telegram Commands
+
+SmartCam supports remote Telegram commands.
+
+| Command | Function |
+|---|---|
+| `/on` | Enable security system |
+| `/off` | Disable security system |
+| `/status` | View current system status |
+| `/help` | Show all available commands |
+
+---
+
+# 🧪 10. Testing the System
+
+## Motion Detection Test
+
+### Step 1
+Power ON the SmartCam device
+
+### Step 2
+Wait until:
+- Wi-Fi connects
+- Telegram becomes active
+
+### Step 3
+Move in front of the PIR sensor
+
+### Step 4
+Verify:
+- Motion detected
+- Image captured
+- Telegram alert received
+
+---
+
+# 🚨 11. Expected Telegram Alert
+
+When motion is detected, Telegram will receive:
+
+✅ Intrusion alert  
+✅ Captured image  
+✅ Device ID  
+✅ House name  
+✅ Room name  
+✅ Date and time  
+
+---
+
+# ⚠️ 12. Important Usage Notes
+
+## Best PIR Placement
+- Keep PIR sensor facing open area
+- Avoid direct sunlight
+- Avoid fans and heat sources
+- Keep sensor outside thick enclosure walls
+
+---
+
+## Stable Operation Tips
+- Use stable 5V power supply
+- Ensure good Wi-Fi signal
+- Avoid overheating inside enclosure
+- Keep camera lens clean
+
+---
+
+## Network Requirement
+`smartcam.local` works only when:
+- Device and user are connected to the SAME Wi-Fi network
+
+---
+
+# 🛠️ 13. Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| smartcam.local not opening | Connect to same Wi-Fi |
+| Telegram alerts not working | Check internet & bot token |
+| PIR false detection | Reposition sensor |
+| Device restarting | Use stable 5V supply |
+| Camera image not sending | Check Wi-Fi signal |
+
+---
+
+# 🔄 14. System Workflow
+
+```text
+Power ON
+    ↓
+Setup Wi-Fi Starts
+    ↓
+User Configuration
+    ↓
+Wi-Fi Connection
+    ↓
+Dashboard Activated
+    ↓
+Motion Monitoring
+    ↓
+Motion Detected
+    ↓
+Image Captured
+    ↓
+Telegram Alert Sent
+```
+
+---
+
+# 📌 Conclusion
+
+SmartCam provides a reliable, user-friendly, and real-time smart surveillance solution using IoT and embedded system technologies.
+
+The system combines:
+- Motion sensing
+- Embedded web applications
+- Wireless communication
+- Telegram cloud alerts
+- Remote monitoring
+
+into a single intelligent security platform suitable for:
+
+- Homes
+- Offices
+- Hostels
+- Smart surveillance applications
+
+---
+
+<div align="center">
+
+# ✅ SmartCam Ready for Use
+
+### Secure • Smart • Reliable
+
+</div>
