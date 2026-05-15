@@ -5,13 +5,12 @@
 #include <ESPmDNS.h>
 #include "esp_camera.h"
 #include "time.h"
-// update 2
+
 // ---------- Setup Portal ----------
 const char* apSSID = "SmartCam_Setup";
 const char* apPassword = "12345678";
 const char* mdnsName = "smartcam";
-
-const unsigned long setupAPTime = 45000; // 45 seconds
+const unsigned long setupAPTime = 100000;
 unsigned long setupAPStartTime = 0;
 bool setupAPActive = false;
 
@@ -36,14 +35,18 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
 
+bool timeSynced = false;
+bool previousWiFiConnected = false;
+unsigned long lastTimeSyncAttempt = 0;
+const unsigned long timeSyncInterval = 30000;
+
 // ---------- PIR ----------
-// update 1
-#define PIR_PIN 14
-//update 5
+#define PIR_PIN 47
+
 const unsigned long pirWarmupTime = 20000;
-const unsigned long motionConfirmTime = 800;
-const unsigned long alertCooldown = 8000;
-const unsigned long lowResetTime = 2000;
+const unsigned long motionConfirmTime = 600;
+const unsigned long alertCooldown = 20000;
+const unsigned long lowResetTime = 5000;
 
 unsigned long systemStartTime = 0;
 unsigned long highStartTime = 0;
@@ -51,12 +54,14 @@ unsigned long lowStartTime = 0;
 unsigned long lastTriggerTime = 0;
 
 bool motionArmed = true;
+bool securityEnabled = true;
 bool isProcessing = false;
 bool cameraReady = false;
 bool systemStartedMessageSent = false;
+int lastUpdateID = 0;
+unsigned long lastTelegramCheck = 0;
 
 // ---------- Camera Pins ----------
-// update 3
 #define PWDN_GPIO_NUM     -1
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM     15
@@ -107,21 +112,56 @@ void saveUserPassword(String pass) {
   prefs.end();
 }
 
-// ---------- HTML ----------
 String pageHeader(String title) {
   String html = "<!DOCTYPE html><html><head>";
+
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
   html += "<title>" + title + "</title>";
+
   html += "<style>";
-  html += "body{font-family:Arial;background:linear-gradient(135deg,#0f172a,#1d4ed8);padding:20px;margin:0;}";
-  html += ".card{max-width:560px;margin:auto;background:white;padding:22px;border-radius:18px;box-shadow:0 10px 30px #0005;}";
-  html += "h2{text-align:center;color:#1d4ed8;}";
-  html += "label{font-weight:bold;margin-top:12px;display:block;}";
-  html += "input{width:100%;padding:12px;margin-top:6px;border-radius:10px;border:1px solid #ccc;box-sizing:border-box;}";
-  html += "button{width:100%;padding:13px;margin-top:18px;background:#2563eb;color:white;border:0;border-radius:10px;font-weight:bold;font-size:16px;}";
-  html += ".msg{background:#e0f2fe;color:#075985;padding:10px;border-radius:10px;margin:10px 0;}";
-  html += ".small{background:#64748b;}";
+
+  html += "*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}";
+
+  html += "body{background:#0f172a;color:white;padding:18px;}";
+
+  html += ".topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}";
+
+  html += ".logo{font-size:26px;font-weight:bold;color:#38bdf8;}";
+
+  html += ".user{background:#1e293b;padding:10px 16px;border-radius:14px;font-size:14px;}";
+
+  html += ".card{background:#1e293b;padding:22px;border-radius:22px;margin-bottom:20px;box-shadow:0 8px 25px rgba(0,0,0,0.3);}";
+
+  html += "h2{margin-bottom:15px;color:#38bdf8;}";
+
+  html += "label{display:block;margin-top:15px;margin-bottom:6px;font-weight:bold;}";
+
+  html += "input{width:100%;padding:14px;border:none;border-radius:14px;background:#334155;color:white;font-size:15px;}";
+
+  html += "input::placeholder{color:#cbd5e1;}";
+
+  html += ".btn{width:100%;padding:15px;border:none;border-radius:14px;background:#2563eb;color:white;font-size:16px;font-weight:bold;margin-top:18px;}";
+
+  html += ".btn-red{background:#dc2626;}";
+
+  html += ".status{display:flex;justify-content:space-between;align-items:center;background:#0f172a;padding:15px;border-radius:14px;margin-top:15px;}";
+
+  html += ".green{color:#22c55e;font-weight:bold;}";
+
+  html += ".red{color:#ef4444;font-weight:bold;}";
+
+  html += ".grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;}";
+
+  html += ".smallCard{background:#334155;padding:18px;border-radius:16px;text-align:center;}";
+
+  html += ".smallCard h3{font-size:15px;margin-bottom:8px;color:#38bdf8;}";
+
+  html += ".smallCard p{font-size:18px;font-weight:bold;}";
+
+  html += ".msg{background:#0f172a;padding:14px;border-radius:14px;margin-top:15px;color:#38bdf8;font-weight:bold;text-align:center;}";
+
   html += "</style></head><body>";
+
   return html;
 }
 
@@ -137,7 +177,7 @@ String createPasswordPage(String msg = "") {
   page += "<form action='/setpassword' method='POST'>";
   page += "<label>Create Password</label><input type='password' name='p1' required>";
   page += "<label>Confirm Password</label><input type='password' name='p2' required>";
-  page += "<button>Save Password</button></form></div>";
+  page += "<button class='btn'>Save Password</button></form></div>";
   return page + pageFooter();
 }
 
@@ -147,27 +187,104 @@ String loginPage(String msg = "") {
   if (msg != "") page += "<div class='msg'>" + msg + "</div>";
   page += "<form action='/login' method='POST'>";
   page += "<label>Password</label><input type='password' name='p' required>";
-  page += "<button>Login</button></form></div>";
+  page += "<button class='btn'>Login</button></form></div>";
   return page + pageFooter();
 }
 
 String configPage(String msg = "") {
-  String page = pageHeader("Configuration");
-  page += "<div class='card'><h2>SmartCam Configuration</h2>";
-  page += "<p>Saved details are hidden. Enter new details to update.</p>";
-  if (msg != "") page += "<div class='msg'>" + msg + "</div>";
+
+  String page = pageHeader("SmartCam App");
+
+  page += "<div class='topbar'>";
+  page += "<div class='logo'>SmartCam</div>";
+  page += "<div class='user'>📷 " + deviceID + "</div>";
+  page += "</div>";
+
+  page += "<div class='card' style='text-align:center;'>";
+  page += "<h2>Security System</h2>";
+
+  if (securityEnabled) {
+    page += "<div style='font-size:42px;margin:15px 0;'>🟢</div>";
+    page += "<h2 style='color:#22c55e;'>SYSTEM ACTIVE</h2>";
+    page += "<p>Motion detection is ON</p>";
+  } else {
+    page += "<div style='font-size:42px;margin:15px 0;'>🔴</div>";
+    page += "<h2 style='color:#ef4444;'>SYSTEM OFF</h2>";
+    page += "<p>Motion detection is disabled</p>";
+  }
+
+  page += "<form action='/security/on' method='POST'>";
+  page += "<button class='btn'>Turn ON Security</button>";
+  page += "</form>";
+
+  page += "<form action='/security/off' method='POST'>";
+  page += "<button class='btn btn-red'>Turn OFF Security</button>";
+  page += "</form>";
+  page += "</div>";
+
+  page += "<div class='grid'>";
+
+  page += "<div class='smallCard'>";
+  page += "<h3>WiFi</h3>";
+  if (WiFi.status() == WL_CONNECTED) {
+    page += "<p class='green'>Connected</p>";
+  } else {
+    page += "<p class='red'>Disconnected</p>";
+  }
+  page += "</div>";
+
+  page += "<div class='smallCard'>";
+  page += "<h3>Device</h3>";
+  page += "<p>" + deviceID + "</p>";
+  page += "</div>";
+
+  page += "<div class='smallCard'>";
+  page += "<h3>Room</h3>";
+  page += "<p>" + roomName + "</p>";
+  page += "</div>";
+
+
+  page += "</div>";
+
+  page += "<div class='card'>";
+  page += "<h2>Settings</h2>";
+
+  if (msg != "") {
+    page += "<div class='msg'>" + msg + "</div>";
+  }
 
   page += "<form action='/save' method='POST'>";
-  page += "<label>WiFi SSID</label><input name='ssid' value='' required>";
-  page += "<label>WiFi Password</label><input name='wpass' value='' required>";
-  page += "<label>Telegram Bot Token</label><input name='bot' value='' required>";
-  page += "<label>Telegram Chat ID</label><input name='chat' value='' required>";
-  page += "<label>Device ID</label><input name='device' value='' required>";
-  page += "<label>House Name</label><input name='house' value='' required>";
-  page += "<label>Room Name</label><input name='room' value='' required>";
-  page += "<button>Save New Configuration</button></form>";
-  page += "<form action='/logout' method='POST'><button class='small'>Logout</button></form>";
+
+  page += "<label>WiFi SSID</label>";
+  page += "<input name='ssid' placeholder='Enter WiFi name' required>";
+
+  page += "<label>WiFi Password</label>";
+  page += "<input type='password' name='wpass' placeholder='Enter WiFi password' required>";
+
+  page += "<label>Telegram Bot Token</label>";
+  page += "<input name='bot' placeholder='Enter bot token' required>";
+
+  page += "<label>Telegram Chat ID</label>";
+  page += "<input name='chat' placeholder='Enter chat ID' required>";
+
+  page += "<label>Device ID</label>";
+  page += "<input name='device' placeholder='Example: CAM001' required>";
+
+  page += "<label>House Name</label>";
+  page += "<input name='house' placeholder='Enter house name' required>";
+
+  page += "<label>Room Name</label>";
+  page += "<input name='room' placeholder='Enter room name' required>";
+
+  page += "<button class='btn'>Save Settings</button>";
+  page += "</form>";
+
+  page += "<form action='/logout' method='POST'>";
+  page += "<button class='btn btn-red'>Logout</button>";
+  page += "</form>";
+
   page += "</div>";
+
   return page + pageFooter();
 }
 
@@ -179,7 +296,31 @@ String savedRestartPage() {
          "</div>" + pageFooter();
 }
 
-// ---------- Web Handlers ----------
+void handleSecurityOn() {
+  securityEnabled = true;
+  motionArmed = true;
+  highStartTime = 0;
+  lowStartTime = millis();
+  lastTriggerTime = 0;
+
+  Serial.println("Security ON from Web App");
+
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+void handleSecurityOff() {
+  securityEnabled = false;
+  motionArmed = false;
+  highStartTime = 0;
+  lowStartTime = 0;
+
+  Serial.println("Security OFF from Web App");
+
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
 void handleRoot() {
   if (userPassword == "") server.send(200, "text/html", createPasswordPage());
   else if (!isLoggedIn) server.send(200, "text/html", loginPage());
@@ -231,15 +372,47 @@ void handleSave() {
   ESP.restart();
 }
 
+// ---------- Time Sync ----------
+bool syncTimeNow() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Time sync failed: WiFi not connected");
+    timeSynced = false;
+    return false;
+  }
+
+  Serial.println("Syncing date and time from NTP...");
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+  struct tm timeinfo;
+  int retry = 0;
+
+  while (!getLocalTime(&timeinfo) && retry < 20) {
+    Serial.println("Waiting for NTP time...");
+    delay(500);
+    retry++;
+  }
+
+  if (retry >= 20) {
+    Serial.println("NTP time sync failed");
+    timeSynced = false;
+    return false;
+  }
+
+  Serial.println("Date and time synced successfully");
+  timeSynced = true;
+  return true;
+}
+
 // ---------- WiFi ----------
 void startSetupWiFi() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(apSSID, apPassword);
+  WiFi.setSleep(false);
 
   setupAPStartTime = millis();
   setupAPActive = true;
 
-  Serial.println("Setup WiFi started for 45 seconds");
+  Serial.println("Setup WiFi started for 100 seconds");
   Serial.println("Connect to: SmartCam_Setup");
   Serial.println("Password: 12345678");
   Serial.print("Open: ");
@@ -259,6 +432,7 @@ bool connectWiFi() {
 
   WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
   WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
 
   Serial.print("Connecting to WiFi");
   unsigned long start = millis();
@@ -274,11 +448,22 @@ bool connectWiFi() {
     Serial.println("WiFi connected");
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
-    MDNS.begin(mdnsName);
+
+    if (MDNS.begin(mdnsName)) {
+  MDNS.addService("http", "tcp", 80);
+  Serial.println("mDNS started: smartcam.local");
+} else {
+  Serial.println("mDNS start failed");
+}
+
+    previousWiFiConnected = true;
+    syncTimeNow();
     return true;
   }
 
   Serial.println("WiFi failed");
+  previousWiFiConnected = false;
+  timeSynced = false;
   return false;
 }
 
@@ -286,9 +471,37 @@ void reconnectWiFiIfNeeded() {
   static unsigned long lastReconnectAttempt = 0;
 
   if (wifiSSID == "") return;
-  if (WiFi.status() == WL_CONNECTED) return;
 
   unsigned long now = millis();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!previousWiFiConnected) {
+      Serial.println("WiFi reconnected");
+      previousWiFiConnected = true;
+
+      if (MDNS.begin(mdnsName)) {
+  MDNS.addService("http", "tcp", 80);
+  Serial.println("mDNS restarted: smartcam.local");
+}
+
+      syncTimeNow();
+    }
+
+    if (!timeSynced && now - lastTimeSyncAttempt >= timeSyncInterval) {
+      lastTimeSyncAttempt = now;
+      syncTimeNow();
+    }
+
+    return;
+  }
+
+  if (previousWiFiConnected) {
+    Serial.println("WiFi disconnected");
+  }
+
+  previousWiFiConnected = false;
+  timeSynced = false;
+
   if (now - lastReconnectAttempt < 15000) return;
 
   lastReconnectAttempt = now;
@@ -300,7 +513,6 @@ void reconnectWiFiIfNeeded() {
 }
 
 // ---------- Camera ----------
-//update 6
 bool initCamera() {
   camera_config_t config;
 
@@ -330,7 +542,7 @@ bool initCamera() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  config.frame_size = FRAMESIZE_QVGA;
+  config.frame_size = FRAMESIZE_VGA;
   config.jpeg_quality = 12;
   config.fb_count = 1;
   config.grab_mode = CAMERA_GRAB_LATEST;
@@ -351,7 +563,7 @@ bool initCamera() {
     s->set_vflip(s, 1);
     s->set_brightness(s, 1);
     s->set_saturation(s, -2);
-    s->set_framesize(s, FRAMESIZE_QVGA);
+    s->set_framesize(s, FRAMESIZE_VGA);
   }
 
   Serial.println("Camera init success");
@@ -363,8 +575,7 @@ void startCameraAfterAPStops() {
     cameraReady = initCamera();
 
     if (WiFi.status() == WL_CONNECTED && !systemStartedMessageSent) {
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-      delay(2000);
+      syncTimeNow();
 
       String startMsg = "✅ SmartCam system started successfully.\n";
       startMsg += "📷 Device ID: " + deviceID + "\n";
@@ -374,11 +585,12 @@ void startCameraAfterAPStops() {
       startMsg += "⚙️ Local Config: smartcam.local";
 
       sendTelegramMessage(startMsg);
+      sendTelegramMessage("📡 Send /help to view SmartCam commands");
       systemStartedMessageSent = true;
     }
   }
 }
-//update 4
+
 // ---------- Telegram ----------
 String urlEncode(String str) {
   String encoded = "";
@@ -407,7 +619,7 @@ String readHttpResponse() {
   String response = "";
   unsigned long timeout = millis();
 
-  while (client.connected() && millis() - timeout < 15000) {
+  while ((client.connected() || client.available()) && millis() - timeout < 5000) {
     while (client.available()) {
       response += (char)client.read();
       timeout = millis();
@@ -439,6 +651,7 @@ bool sendTelegramMessage(String text) {
   client.print(body);
 
   readHttpResponse();
+  client.flush();
   client.stop();
 
   Serial.println("Telegram text sent");
@@ -507,6 +720,7 @@ bool sendPhotoToTelegram(String captionText) {
   client.print(tail);
 
   String response = readHttpResponse();
+  client.flush();
   client.stop();
   esp_camera_fb_return(fb);
 
@@ -518,7 +732,12 @@ bool sendPhotoToTelegram(String captionText) {
 // ---------- Time ----------
 String getDateString() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return "Not available";
+
+  if (!getLocalTime(&timeinfo)) {
+    syncTimeNow();
+    if (!getLocalTime(&timeinfo)) return "Not available";
+  }
+
   char buf[20];
   strftime(buf, sizeof(buf), "%d-%m-%Y", &timeinfo);
   return String(buf);
@@ -526,16 +745,98 @@ String getDateString() {
 
 String getTimeString() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return "Not available";
+
+  if (!getLocalTime(&timeinfo)) {
+    syncTimeNow();
+    if (!getLocalTime(&timeinfo)) return "Not available";
+  }
+
   char buf[20];
   strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
   return String(buf);
 }
 
+void checkTelegramCommands() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (botToken == "" || chatID == "") return;
+
+  if (millis() - lastTelegramCheck < 5000) return;
+  lastTelegramCheck = millis();
+
+  client.setInsecure();
+  client.setTimeout(5000);
+
+  String url = "/bot" + botToken + "/getUpdates?offset=" + String(lastUpdateID + 1);
+
+  if (!client.connect("api.telegram.org", 443)) {
+    Serial.println("Telegram command connection failed");
+    return;
+  }
+
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: api.telegram.org\r\n" +
+               "Connection: close\r\n\r\n");
+
+  String response = readHttpResponse();
+  client.flush();
+  client.stop();
+
+  if (response.indexOf("\"update_id\":") == -1) return;
+
+  int idIndex = response.lastIndexOf("\"update_id\":");
+  int idStart = response.indexOf(":", idIndex) + 1;
+  int idEnd = response.indexOf(",", idStart);
+  lastUpdateID = response.substring(idStart, idEnd).toInt();
+
+  if (response.indexOf(chatID) == -1) return;
+
+  if (response.indexOf("\"text\":\"/on\"") != -1){
+    securityEnabled = true;
+    motionArmed = true;
+    highStartTime = 0;
+    lowStartTime = millis();
+    lastTriggerTime = 0;
+    sendTelegramMessage("🟢 SECURITY SYSTEM ENABLED\n\n📷 Device: " + deviceID);
+    Serial.println("Security ON from Telegram");
+  }
+
+  if (response.indexOf("\"text\":\"/off\"") != -1) {
+    securityEnabled = false;
+    motionArmed = false;
+    highStartTime = 0;
+    lowStartTime = 0;
+    sendTelegramMessage("🔴 SECURITY SYSTEM DISABLED\n\n📷 Device: " + deviceID);
+    Serial.println("Security OFF from Telegram");
+  }
+  if (response.indexOf("\"text\":\"/help\"") != -1) {
+    String helpMsg = "📡 SMARTCAM COMMANDS\n\n";
+    helpMsg += "/on - Enable security\n";
+    helpMsg += "/off - Disable security\n";
+    helpMsg += "/status - Device status\n";
+    helpMsg += "/help - Show commands";
+
+    sendTelegramMessage(helpMsg);
+  }
+  if (response.indexOf("\"text\":\"/status\"") != -1) {
+    String statusMsg = "📡 SMARTCAM STATUS\n\n";
+    statusMsg += "📷 Device: " + deviceID + "\n";
+    statusMsg += securityEnabled ? "🟢 Security: ON\n" : "🔴 Security: OFF\n";
+    statusMsg += WiFi.status() == WL_CONNECTED ? "📶 WiFi: Connected\n" : "❌ WiFi: Disconnected\n";
+    statusMsg += "📅 Date: " + getDateString() + "\n";
+    statusMsg += "🕒 Time: " + getTimeString();
+
+    sendTelegramMessage(statusMsg);
+    Serial.println("Status sent from Telegram");
+  }
+}
 // ---------- Motion ----------
 void handleMotion() {
   if (isProcessing) return;
   isProcessing = true;
+
+  if (!timeSynced) {
+    syncTimeNow();
+  }
 
   String caption = "🚨 SECURITY ALERT 🚨\n\n";
   caption += "📷 Device ID: " + deviceID + "\n";
@@ -573,34 +874,43 @@ void setup() {
   server.on("/login", HTTP_POST, handleLogin);
   server.on("/logout", HTTP_POST, handleLogout);
   server.on("/save", HTTP_POST, handleSave);
+  server.on("/security/on", HTTP_POST, handleSecurityOn);
+  server.on("/security/off", HTTP_POST, handleSecurityOff);
+
   server.begin();
+  Serial.println("HTTP server started");
 
   connectWiFi();
 
-  Serial.println("Setup AP active for 45 seconds...");
+  Serial.println("Setup AP active for 100 seconds...");
   Serial.println("Camera and PIR will start after setup AP stops.");
 }
-//update 7
 // ---------- Loop ----------
 void loop() {
   server.handleClient();
   autoStopSetupAP();
   reconnectWiFiIfNeeded();
   startCameraAfterAPStops();
+  checkTelegramCommands();
 
   if (setupAPActive || !cameraReady) {
-    delay(150);
+    delay(50);
+    yield();
     return;
   }
+
+ if (!securityEnabled) {
+    delay(50);
+    yield();
+    return;
+}
 
   int pirState = digitalRead(PIR_PIN);
   unsigned long now = millis();
 
-  Serial.print("PIR: ");
-  Serial.println(pirState);
-
   if (now - systemStartTime < pirWarmupTime) {
-    delay(150);
+    delay(50);
+    yield();
     return;
   }
 
@@ -630,5 +940,6 @@ void loop() {
     }
   }
 
-  delay(150);
+  delay(50);
+  yield();
 }
