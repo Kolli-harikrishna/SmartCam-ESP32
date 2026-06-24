@@ -128,7 +128,7 @@ smartcam.local
 | Optional MicroSD Card | Local storage support |
 
 
-# 💻 Software & Technologies Used
+# 💻 Software & Technologies Used 
 
 | Technology | Purpose |
 |---|---|
