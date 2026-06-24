@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚨 SmartCam
+# 🚨 SmartCam 
 ## Advanced ESP32-S3 Smart Security System
 
 ### Real-Time IoT Surveillance & Intrusion Detection System
